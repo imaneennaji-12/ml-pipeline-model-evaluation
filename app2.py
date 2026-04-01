@@ -1,0 +1,152 @@
+import streamlit as st
+import pandas as pd
+import joblib
+from datetime import datetime
+import shap
+import numpy as np
+import matplotlib.pyplot as plt
+# ==============================
+# Page Config
+# ==============================
+
+st.set_page_config(page_title="Fraud Detection - Simulation", layout="wide")
+
+# ==============================
+# Load Production Model
+# ==============================
+
+model = joblib.load("fraud_model_production1.pkl")
+# Extract pipeline components
+preprocessor = model.named_steps["preprocessing"]
+classifier = model.named_steps["model"]
+st.title("Bank Fraud Detection - Simulation Interface")
+st.write("App loaded successfully")
+st.write("Academic Simulation - Model Testing Only")
+
+st.markdown("---")
+
+# ==============================
+# Transaction Form
+# ==============================
+
+with st.form("transaction_form"):
+
+    st.subheader("Transaction Identifiers")
+
+    col_id1, col_id2 = st.columns(2)
+
+    with col_id1:
+        transaction_id = st.text_input("Transaction ID")
+
+    with col_id2:
+        client_id = st.text_input("Client ID")
+
+    st.markdown("---")
+    st.subheader("Transaction Features")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        amount = st.number_input("Transaction Amount", min_value=0.0)
+        transaction_hour = st.slider("Transaction Hour", 0, 23)
+        device_trust_score = st.slider("Device Trust Score", 0.0, 1.0)
+        velocity_last_24h = st.number_input("Transactions in Last 24h", min_value=0)
+
+    with col2:
+        cardholder_age = st.number_input("Cardholder Age", min_value=18, max_value=100)
+        foreign_transaction = st.selectbox("Foreign Transaction", [0, 1])
+        location_mismatch = st.selectbox("Location Mismatch", [0, 1])
+        merchant_category = st.selectbox(
+            "Merchant Category",
+            ["Grocery", "Food", "Travel", "Electronics", "Clothing"]
+        )
+
+    submitted = st.form_submit_button("Analyze Transaction")
+
+# ==============================
+# Prediction
+# ==============================
+
+if submitted:
+
+    if transaction_id == "" or client_id == "":
+        st.warning("Please enter Transaction ID and Client ID.")
+    else:
+
+        # Data for ML model (IDs NOT included)
+        input_data = pd.DataFrame({
+            "amount": [amount],
+            "transaction_hour": [transaction_hour],
+            "device_trust_score": [device_trust_score],
+            "velocity_last_24h": [velocity_last_24h],
+            "cardholder_age": [cardholder_age],
+            "foreign_transaction": [foreign_transaction],
+            "location_mismatch": [location_mismatch],
+            "merchant_category": [merchant_category]
+        })
+
+        prediction = model.predict(input_data)[0]
+        probability = model.predict_proba(input_data)[0][1]
+
+        st.markdown("---")
+        st.subheader("Prediction Result")
+        
+
+        if prediction == 1:
+            st.error(f"Fraud Detected - Risk Score: {probability:.2%}")
+            status = "FRAUD"
+        else:
+            st.success(f"Transaction Legitimate - Risk Score: {probability:.2%}")
+            status = "LEGITIMATE"
+        # ==============================
+        # SHAP EXPLANATION
+        # ==============================
+        
+        st.markdown("---")
+        st.subheader("Model Explanation (SHAP)")
+        
+        try:
+            # 1️⃣ Transform input
+            preprocessed_input = preprocessor.transform(input_data)
+        
+            # 2️⃣ Create explainer (for tree models like XGBoost / LightGBM)
+            explainer = shap.TreeExplainer(classifier)
+        
+            # 3️⃣ Compute SHAP values
+            shap_values = explainer(preprocessed_input)
+        
+            # 4️⃣ Get feature names AFTER preprocessing
+            feature_names = preprocessor.get_feature_names_out()
+        
+            # 5️⃣ Create SHAP Explanation object
+            explanation = shap.Explanation(
+                values=shap_values.values[0],
+                base_values=shap_values.base_values[0],
+                data=preprocessed_input[0],
+                feature_names=feature_names
+            )
+        
+            # 6️⃣ Plot waterfall
+            fig, ax = plt.subplots()
+            shap.plots.waterfall(explanation, show=False)
+            st.pyplot(fig)
+        
+        except Exception as e:
+            st.warning(f"SHAP explanation not available: {e}")
+        # ==============================
+        # Simulated Database Record
+        # ==============================
+
+        transaction_record = {
+            "transaction_id": transaction_id,
+            "client_id": client_id,
+            "timestamp": datetime.now(),
+            "amount": amount,
+            "prediction": status,
+            "risk_score": float(probability)
+        }
+
+        st.markdown("---")
+        st.subheader("Simulated Database Record")
+
+        st.json(transaction_record)

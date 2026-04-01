@@ -1,4 +1,5 @@
 💳 Détection de Fraude Bancaire avec Machine Learning
+
 📌 Présentation
 
 Ce projet est un système complet de Machine Learning permettant de détecter les transactions frauduleuses.
@@ -10,6 +11,7 @@ L'entraînement de plusieurs modèles
 L’évaluation et la sélection du meilleur modèle
 Une application web interactive avec Streamlit
 L’explication des prédictions avec SHAP
+
 🎯 Objectif
 
 L’objectif est d’identifier les transactions frauduleuses avec une haute précision tout en réduisant les faux positifs.
@@ -36,7 +38,9 @@ Entraînement de plusieurs modèles
 Comparaison des modèles
 Sélection du modèle optimal
 Sauvegarde du modèle final (.pkl)
+
 🤖 Modèles testés
+
 Régression Logistique
 Arbre de Décision
 Random Forest
